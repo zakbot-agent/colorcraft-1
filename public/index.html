@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ColorCraft — Palette Generator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f13;
+      --surface: #1a1a24;
+      --surface2: #23233a;
+      --border: #2d2d44;
+      --text: #e8e8f0;
+      --text2: #9999b0;
+      --accent: #7c5cfc;
+      --accent2: #a78bfa;
+      --success: #4ade80;
+      --error: #f87171;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    .container { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+
+    header {
+      text-align: center;
+      padding: 40px 0 32px;
+    }
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), #f472b6, #fb923c);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    header p { color: var(--text2); margin-top: 4px; font-size: 0.95rem; }
+
+    /* Input area */
+    .input-area {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 32px;
+    }
+    .color-picker-wrap {
+      position: relative;
+      width: 52px;
+      height: 52px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 2px solid var(--border);
+      cursor: pointer;
+    }
+    .color-picker-wrap input[type="color"] {
+      position: absolute;
+      inset: -8px;
+      width: calc(100% + 16px);
+      height: calc(100% + 16px);
+      border: none;
+      cursor: pointer;
+      background: none;
+    }
+    .hex-input {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      color: var(--text);
+      padding: 12px 18px;
+      border-radius: var(--radius);
+      font-size: 1.1rem;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      width: 180px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .hex-input:focus { border-color: var(--accent); }
+
+    .btn {
+      padding: 12px 24px;
+      border-radius: var(--radius);
+      border: none;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 600;
+      transition: all 0.2s;
+      color: #fff;
+    }
+    .btn-primary { background: var(--accent); }
+    .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+    .btn-secondary { background: var(--surface2); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--border); }
+    .btn-small { padding: 6px 14px; font-size: 0.8rem; }
+
+    /* Sections */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title .badge {
+      font-size: 0.75rem;
+      background: var(--surface2);
+      padding: 2px 10px;
+      border-radius: 999px;
+      color: var(--text2);
+      font-weight: 400;
+    }
+
+    /* Color swatches */
+    .palette-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .swatch {
+      flex: 1;
+      min-width: 80px;
+      max-width: 200px;
+      aspect-ratio: 1;
+      border-radius: 10px;
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.15s, box-shadow 0.15s;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      overflow: hidden;
+    }
+    .swatch:hover {
+      transform: scale(1.04);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      z-index: 2;
+    }
+    .swatch-info {
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(8px);
+      padding: 8px 10px;
+      font-size: 0.78rem;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      line-height: 1.4;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .swatch:hover .swatch-info { opacity: 1; }
+    .swatch-info .hex-val { font-weight: 700; }
+    .copied-toast {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.8);
+      color: #fff;
+      padding: 6px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      pointer-events: none;
+      animation: fadeInOut 1s ease;
+    }
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+      15% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      70% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* Contrast checker */
+    .contrast-inputs {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .contrast-result {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .contrast-ratio {
+      font-size: 2.2rem;
+      font-weight: 700;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    .contrast-preview {
+      width: 200px;
+      height: 80px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    .wcag-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+    .wcag-badge {
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .wcag-pass { background: rgba(74,222,128,0.15); color: var(--success); }
+    .wcag-fail { background: rgba(248,113,113,0.15); color: var(--error); }
+
+    /* Export area */
+    .export-area {
+      display: flex;
+      gap: 8px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    pre.css-output {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      font-size: 0.82rem;
+      overflow-x: auto;
+      white-space: pre;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      color: var(--text2);
+      max-height: 300px;
+      margin-top: 12px;
+      display: none;
+    }
+    pre.css-output.visible { display: block; }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .tab {
+      padding: 8px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      background: transparent;
+      color: var(--text2);
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab:hover { background: var(--surface2); color: var(--text); }
+    .tab.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      header h1 { font-size: 1.5rem; }
+      .swatch { min-width: 60px; aspect-ratio: 1.2; }
+      .contrast-preview { width: 140px; height: 60px; }
+      .hex-input { width: 140px; }
+    }
+
+    footer {
+      text-align: center;
+      padding: 32px 0;
+      color: var(--text2);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>ColorCraft</h1>
+    <p>Generate harmonious color palettes instantly</p>
+  </header>
+
+  <!-- Input -->
+  <div class="input-area">
+    <div class="color-picker-wrap" id="pickerWrap">
+      <input type="color" id="colorPicker" value="#ff6b35">
+    </div>
+    <input type="text" class="hex-input" id="hexInput" value="#ff6b35" placeholder="#ff6b35" maxlength="7" spellcheck="false">
+    <button class="btn btn-primary" id="generateBtn">Generate</button>
+    <button class="btn btn-secondary" id="randomBtn">Random</button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-type="all">All</button>
+    <button class="tab" data-type="complementary">Complementary</button>
+    <button class="tab" data-type="analogous">Analogous</button>
+    <button class="tab" data-type="triadic">Triadic</button>
+    <button class="tab" data-type="tetradic">Tetradic</button>
+    <button class="tab" data-type="split-complementary">Split-Comp</button>
+    <button class="tab" data-type="monochromatic">Monochromatic</button>
+  </div>
+
+  <!-- Palettes -->
+  <div id="palettes"></div>
+
+  <!-- Contrast Checker -->
+  <div class="section" style="margin-top: 12px;">
+    <div class="section-title">Contrast Checker</div>
+    <div class="contrast-inputs">
+      <input type="text" class="hex-input" id="contrast1" value="#000000" maxlength="7" style="width:130px" spellcheck="false">
+      <span style="color:var(--text2)">vs</span>
+      <input type="text" class="hex-input" id="contrast2" value="#ffffff" maxlength="7" style="width:130px" spellcheck="false">
+      <button class="btn btn-secondary btn-small" id="checkContrastBtn">Check</button>
+    </div>
+    <div id="contrastResult"></div>
+  </div>
+
+  <!-- Export -->
+  <div class="export-area">
+    <button class="btn btn-secondary btn-small" id="exportCssBtn">Export CSS</button>
+    <button class="btn btn-secondary btn-small" id="exportJsonBtn">Export JSON</button>
+  </div>
+  <pre class="css-output" id="exportOutput"></pre>
+
+  <footer>ColorCraft &mdash; Zero dependencies, pure Node.js</footer>
+</div>
+
+<script>
+(function() {
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => document.querySelectorAll(s);
+
+  const hexInput = $('#hexInput');
+  const colorPicker = $('#colorPicker');
+  const palettesEl = $('#palettes');
+  const tabsEl = $('#tabs');
+  let currentPalettes = [];
+  let currentTab = 'all';
+
+  // Sync picker <-> input
+  colorPicker.addEventListener('input', () => {
+    hexInput.value = colorPicker.value;
+    generate();
+  });
+  hexInput.addEventListener('input', () => {
+    const v = hexInput.value;
+    if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+      colorPicker.value = v;
+      generate();
+    }
+  });
+
+  $('#generateBtn').addEventListener('click', generate);
+  $('#randomBtn').addEventListener('click', async () => {
+    const res = await fetch('/api/random?count=1');
+    const data = await res.json();
+    if (data[0]) {
+      hexInput.value = data[0].hex;
+      colorPicker.value = data[0].hex;
+      generate();
+    }
+  });
+
+  // Tabs
+  tabsEl.addEventListener('click', (e) => {
+    if (!e.target.classList.contains('tab')) return;
+    $$('.tab').forEach(t => t.classList.remove('active'));
+    e.target.classList.add('active');
+    currentTab = e.target.dataset.type;
+    renderPalettes();
+  });
+
+  async function generate() {
+    const color = encodeURIComponent(hexInput.value);
+    try {
+      const res = await fetch(`/api/palette?color=${color}`);
+      const data = await res.json();
+      if (data.error) return;
+      currentPalettes = data;
+      renderPalettes();
+    } catch(e) {}
+  }
+
+  function renderPalettes() {
+    const filtered = currentTab === 'all'
+      ? currentPalettes
+      : currentPalettes.filter(p => p.type === currentTab);
+
+    palettesEl.innerHTML = filtered.map(p => `
+      <div class="section">
+        <div class="section-title">
+          ${capitalize(p.type)}
+          <span class="badge">${p.colors.length} colors</span>
+        </div>
+        <div class="palette-row">
+          ${p.colors.map(c => `
+            <div class="swatch" style="background:${c.hex}" onclick="copySwatch(this, '${c.hex}')" title="Click to copy">
+              <div class="swatch-info">
+                <div class="hex-val">${c.hex}</div>
+                <div>${c.rgb}</div>
+                <div>${c.hsl}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function capitalize(s) {
+    return s.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  }
+
+  // Copy to clipboard
+  window.copySwatch = function(el, hex) {
+    navigator.clipboard.writeText(hex).catch(() => {});
+    const toast = document.createElement('div');
+    toast.className = 'copied-toast';
+    toast.textContent = 'Copied!';
+    el.appendChild(toast);
+    setTimeout(() => toast.remove(), 1000);
+  };
+
+  // Contrast checker
+  $('#checkContrastBtn').addEventListener('click', checkContrast);
+  async function checkContrast() {
+    const c1 = encodeURIComponent($('#contrast1').value);
+    const c2 = encodeURIComponent($('#contrast2').value);
+    try {
+      const res = await fetch(`/api/contrast?color1=${c1}&color2=${c2}`);
+      const data = await res.json();
+      if (data.error) {
+        $('#contrastResult').innerHTML = `<p style="color:var(--error)">${data.error}</p>`;
+        return;
+      }
+      const badge = (pass, label) =>
+        `<span class="wcag-badge ${pass ? 'wcag-pass' : 'wcag-fail'}">${label}: ${pass ? 'PASS' : 'FAIL'}</span>`;
+
+      $('#contrastResult').innerHTML = `
+        <div class="contrast-result">
+          <div class="contrast-ratio">${data.ratioText}</div>
+          <div class="contrast-preview" style="background:${data.color1};color:${data.color2};border:1px solid var(--border)">
+            Sample Text
+          </div>
+          <div class="wcag-badges">
+            ${badge(data.aa.normalText, 'AA Normal')}
+            ${badge(data.aa.largeText, 'AA Large')}
+            ${badge(data.aaa.normalText, 'AAA Normal')}
+            ${badge(data.aaa.largeText, 'AAA Large')}
+          </div>
+        </div>
+      `;
+    } catch(e) {}
+  }
+
+  // Export
+  $('#exportCssBtn').addEventListener('click', () => {
+    const output = $('#exportOutput');
+    if (!currentPalettes.length) return;
+    let css = ':root {\n';
+    currentPalettes.forEach(p => {
+      css += `  /* ${p.type} */\n`;
+      p.colors.forEach((c, i) => {
+        css += `  --${p.type}-${i+1}: ${c.hex};\n`;
+      });
+    });
+    css += '}';
+    output.textContent = css;
+    output.classList.add('visible');
+  });
+
+  $('#exportJsonBtn').addEventListener('click', () => {
+    const output = $('#exportOutput');
+    if (!currentPalettes.length) return;
+    output.textContent = JSON.stringify(currentPalettes, null, 2);
+    output.classList.add('visible');
+  });
+
+  // Init
+  generate();
+  checkContrast();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "name": "colorcraft",
+  "version": "1.0.0",
+  "description": "Color palette generator - harmonious palettes, conversions, contrast checker. CLI + Web UI.",
+  "main": "dist/index.js",
+  "bin": {
+    "colorcraft": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "color",
+    "palette",
+    "generator",
+    "hex",
+    "rgb",
+    "hsl",
+    "contrast",
+    "wcag"
+  ],
+  "author": "Zakaria Kone",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^25.5.0"
+  }
+}
